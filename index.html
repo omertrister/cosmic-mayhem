@@ -3316,7 +3316,8 @@ function checkCollisions() {
   if(player.invincible <= 0) {
     enemyBullets = enemyBullets.filter(b => {
       if(dist(b, player) < 20) {
-        hitPlayer(10);
+        hitPlayer(5);
+        player.invincible = Math.min(player.invincible, 20); // קצר אחרי כדור
         explode(b.x, b.y, '#ff4040', 8);
         return false;
       }
