@@ -1452,7 +1452,9 @@ const ADMIN_BADGE = '☑️';
 function isAdminHash(username) {
   let h = 0;
   for(let i=0;i<username.length;i++) h = Math.imul(31,h)+username.charCodeAt(i)|0;
-  return ADMIN_HASHES.has(h.toString(36));
+  const result = h.toString(36);
+  console.log('🔑 username hash:', JSON.stringify(username), '->', result, '| is admin:', ADMIN_HASHES.has(result));
+  return ADMIN_HASHES.has(result);
 }
 
 function isAdmin(username) { return !!username && isAdminHash(username); }
