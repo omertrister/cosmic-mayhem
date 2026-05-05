@@ -1739,20 +1739,65 @@ let fbRef = null;
 
 function initFirebase() {
   return new Promise((resolve) => {
-    if(firebaseDB) { resolve(); return; }
+    console.log('🔥 initFirebase: התחלה');
+
+    if(firebaseDB) {
+      console.log('✅ Firebase כבר מאותחל, דולג');
+      resolve();
+      return;
+    }
+
+    console.log('📥 טוען firebase-app-compat.js...');
     const script1 = document.createElement('script');
     script1.src = 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js';
+
+    script1.onerror = (e) => {
+      console.error('❌ נכשל לטעון firebase-app-compat.js', e);
+    };
+
     script1.onload = () => {
+      console.log('✅ firebase-app-compat.js נטען בהצלחה');
+      console.log('📥 טוען firebase-database-compat.js...');
+
       const script2 = document.createElement('script');
       script2.src = 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js';
+
+      script2.onerror = (e) => {
+        console.error('❌ נכשל לטעון firebase-database-compat.js', e);
+      };
+
       script2.onload = () => {
-        firebase.initializeApp(firebaseConfig);
-        firebaseDB = firebase.database();
-        fbRef = firebaseDB.ref('cosmicmayhem');
+        console.log('✅ firebase-database-compat.js נטען בהצלחה');
+        console.log('🔧 מאתחל Firebase עם הגדרות...');
+
+        try {
+          firebase.initializeApp(firebaseConfig);
+          console.log('✅ firebase.initializeApp הצליח');
+        } catch(e) {
+          console.error('❌ firebase.initializeApp נכשל:', e.message);
+        }
+
+        try {
+          firebaseDB = firebase.database();
+          console.log('✅ firebase.database() הצליח');
+        } catch(e) {
+          console.error('❌ firebase.database() נכשל:', e.message);
+        }
+
+        try {
+          fbRef = firebaseDB.ref('cosmicmayhem');
+          console.log('✅ fbRef נוצר:', fbRef.toString());
+        } catch(e) {
+          console.error('❌ fbRef נכשל:', e.message);
+        }
+
+        console.log('🎉 Firebase מוכן לשימוש!');
         resolve();
       };
+
       document.head.appendChild(script2);
     };
+
     document.head.appendChild(script1);
   });
 }
