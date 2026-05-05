@@ -1446,7 +1446,7 @@ const REMEMBER_KEY = 'cosmicmayhem_remember';
 
 // ——— ADMIN SYSTEM ———
 // Usernames stored as hashes — not readable in plain text from DevTools
-const ADMIN_HASHES = new Set(['-xbr7ez', '-yxaz56']);
+const ADMIN_HASHES = new Set(['-ae8io7', '-yxaz56']);
 const ADMIN_BADGE = '☑️';
 
 function isAdminHash(username) {
@@ -2229,33 +2229,29 @@ function showScreen(id) {
 }
 function showMenu() {
   const nameEl = document.getElementById('welcome-name');
-  if(nameEl) nameEl.innerHTML = escHtml(currentUser||'') + (isAdmin(currentUser) ? ' <span style="color:#ffbe0b;font-size:14px" title="Admin">★</span>' : '');
+  if(nameEl) nameEl.innerHTML = escHtml(currentUser||'') + (isAdmin(currentUser) ? ' <span style="color:#ffbe0b;font-size:14px">★</span>' : '');
 
-  // Show/hide admin button
-  let adminBtn = document.getElementById('menu-admin-btn');
+  // Admin button — remove old one first, then re-add if admin
+  const old = document.getElementById('admin-btn-wrapper');
+  if(old) old.remove();
+
   if(isAdmin(currentUser)) {
-    if(!adminBtn) {
-      adminBtn = document.createElement('button');
-      adminBtn.id = 'menu-admin-btn';
-      adminBtn.onclick = openAdminPanel;
-      adminBtn.style.cssText = `font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:3px;
-        padding:10px 24px;background:linear-gradient(135deg,rgba(255,190,11,0.15),rgba(255,80,0,0.1));
-        border:1px solid rgba(255,190,11,0.5);color:#ffbe0b;cursor:pointer;border-radius:6px;transition:all 0.3s;`;
-      adminBtn.innerHTML = '⚙️ פאנל אדמין';
-      adminBtn.onmouseover = ()=>{ adminBtn.style.background='rgba(255,190,11,0.2)'; adminBtn.style.boxShadow='0 0 20px rgba(255,190,11,0.3)'; };
-      adminBtn.onmouseout  = ()=>{ adminBtn.style.background='linear-gradient(135deg,rgba(255,190,11,0.15),rgba(255,80,0,0.1))'; adminBtn.style.boxShadow='none'; };
-      // Insert before the last menu-btns div (logout row)
-      const btnsRows = document.querySelectorAll('#menu-screen .menu-btns');
-      const lastRow = btnsRows[btnsRows.length-1];
-      const wrapper = document.createElement('div');
-      wrapper.className = 'menu-btns';
-      wrapper.id = 'admin-btn-wrapper';
-      wrapper.appendChild(adminBtn);
-      lastRow.parentNode.insertBefore(wrapper, lastRow);
-    }
-  } else {
-    const wrapper = document.getElementById('admin-btn-wrapper');
-    if(wrapper) wrapper.remove();
+    const wrapper = document.createElement('div');
+    wrapper.className = 'menu-btns';
+    wrapper.id = 'admin-btn-wrapper';
+    wrapper.innerHTML = `<button onclick="openAdminPanel()" style="
+      font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:3px;
+      padding:10px 24px;background:linear-gradient(135deg,rgba(255,190,11,0.15),rgba(255,80,0,0.1));
+      border:1px solid rgba(255,190,11,0.6);color:#ffbe0b;cursor:pointer;border-radius:6px;transition:all 0.3s;
+      box-shadow:0 0 15px rgba(255,190,11,0.2);"
+      onmouseover="this.style.background='rgba(255,190,11,0.25)';this.style.boxShadow='0 0 25px rgba(255,190,11,0.4)'"
+      onmouseout="this.style.background='linear-gradient(135deg,rgba(255,190,11,0.15),rgba(255,80,0,0.1))';this.style.boxShadow='0 0 15px rgba(255,190,11,0.2)'">
+      ⚙️ פאנל אדמין
+    </button>`;
+    // Insert after LAUNCH MISSION row
+    const menuContent = document.querySelector('#menu-screen .menu-content');
+    const firstBtns = menuContent.querySelector('.menu-btns');
+    firstBtns.parentNode.insertBefore(wrapper, firstBtns.nextSibling);
   }
 
   loadShopPurchases();
