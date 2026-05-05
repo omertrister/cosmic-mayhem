@@ -1444,6 +1444,176 @@ const DB_KEY = 'cosmicmayhem_db';
 const SESSION_KEY = 'cosmicmayhem_session';
 const REMEMBER_KEY = 'cosmicmayhem_remember';
 
+// ——— ADMIN SYSTEM ———
+// Usernames stored as hashes — not readable in plain text from DevTools
+const ADMIN_HASHES = new Set(['-xbr7ez', '-yxaz56']);
+const ADMIN_BADGE = '☑️';
+
+function isAdminHash(username) {
+  let h = 0;
+  for(let i=0;i<username.length;i++) h = Math.imul(31,h)+username.charCodeAt(i)|0;
+  return ADMIN_HASHES.has(h.toString(36));
+}
+
+function isAdmin(username) { return !!username && isAdminHash(username); }
+
+// ——— ADMIN PANEL ———
+function openAdminPanel() {
+  let panel = document.getElementById('admin-panel');
+  if(!panel) {
+    panel = document.createElement('div');
+    panel.id = 'admin-panel';
+    panel.style.cssText = `
+      position:fixed;top:0;left:0;width:100%;height:100%;z-index:999999;
+      background:rgba(0,0,10,0.97);display:flex;flex-direction:column;
+      font-family:'Exo 2',sans-serif;overflow:hidden;
+    `;
+    document.body.appendChild(panel);
+  }
+  renderAdminPanel(panel);
+}
+
+function renderAdminPanel(panel) {
+  const db = loadDB();
+  const users = Object.entries(db.users).sort((a,b)=>(b[1].bestScore||0)-(a[1].bestScore||0));
+  const totalGames = users.reduce((s,[,u])=>s+(u.totalGames||0),0);
+  const totalKillsAll = users.reduce((s,[,u])=>s+(u.totalKills||0),0);
+  const totalCoinsAll = users.reduce((s,[,u])=>s+(u.coins||0),0);
+
+  panel.innerHTML = `
+    <div style="background:rgba(0,5,25,0.95);border-bottom:1px solid rgba(255,0,110,0.3);padding:16px 28px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:22px;font-weight:900;letter-spacing:5px;
+          background:linear-gradient(90deg,#ff006e,#ff8800,#ffbe0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+          ⚙️ ADMIN PANEL
+        </div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.3);letter-spacing:2px;margin-top:2px">Logged in as: <span style="color:#ff006e">${escHtml(currentUser)}</span></div>
+      </div>
+      <div style="display:flex;gap:24px;text-align:center">
+        ${[['👥',users.length,'משתמשים'],['🎮',totalGames,'משחקים'],['💀',totalKillsAll,'הרוגים'],['⭐',totalCoinsAll,'מטבעות סה"כ']].map(([ic,v,l])=>`
+          <div style="background:rgba(255,0,110,0.08);border:1px solid rgba(255,0,110,0.2);border-radius:8px;padding:8px 16px">
+            <div style="font-size:18px">${ic}</div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:16px;font-weight:900;color:#fff">${typeof v==='number'?v.toLocaleString():v}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.4)">${l}</div>
+          </div>
+        `).join('')}
+      </div>
+      <button onclick="document.getElementById('admin-panel').remove()" style="
+        font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:2px;padding:10px 20px;
+        background:rgba(255,0,110,0.1);border:1px solid rgba(255,0,110,0.4);color:#ff006e;
+        cursor:pointer;border-radius:8px;transition:all 0.2s
+      " onmouseover="this.style.background='rgba(255,0,110,0.2)'" onmouseout="this.style.background='rgba(255,0,110,0.1)'">✕ סגור</button>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:20px 28px">
+      <!-- Search -->
+      <div style="margin-bottom:16px;display:flex;gap:10px;align-items:center">
+        <input id="admin-search" placeholder="🔍 חפש משתמש..." oninput="adminSearch()" style="
+          flex:1;max-width:320px;background:rgba(0,245,255,0.05);border:1px solid rgba(0,245,255,0.2);
+          border-radius:8px;padding:10px 14px;color:#fff;font-family:'Exo 2',sans-serif;font-size:13px;outline:none
+        "/>
+        <div style="font-family:'Orbitron',sans-serif;font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:2px">
+          ${users.length} משתמשים רשומים
+        </div>
+      </div>
+
+      <!-- Users table -->
+      <div style="background:rgba(0,5,20,0.7);border:1px solid rgba(0,245,255,0.1);border-radius:12px;overflow:hidden">
+        <div style="display:grid;grid-template-columns:32px 1fr 100px 90px 80px 80px 80px 220px;
+          padding:10px 16px;border-bottom:1px solid rgba(0,245,255,0.1);
+          font-family:'Orbitron',sans-serif;font-size:9px;letter-spacing:2px;color:rgba(0,245,255,0.5)">
+          <span>#</span><span>משתמש</span><span>שיא</span><span>שלב</span><span>משחקים</span><span>הרוגים</span><span>מטבעות</span><span>פעולות</span>
+        </div>
+        <div id="admin-users-list">
+          ${renderAdminUsers(users)}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderAdminUsers(users) {
+  return users.map(([name, u], i) => {
+    const admin = isAdmin(name);
+    const achs = Object.keys(u.achievements||{}).length;
+    return `<div class="admin-row" style="display:grid;grid-template-columns:32px 1fr 100px 90px 80px 80px 80px 220px;
+      padding:12px 16px;border-bottom:1px solid rgba(0,245,255,0.05);align-items:center;
+      background:${admin?'rgba(255,190,11,0.05)':'transparent'};transition:background 0.2s"
+      onmouseover="this.style.background='rgba(0,245,255,0.04)'" onmouseout="this.style.background='${admin?'rgba(255,190,11,0.05)':'transparent'}'">
+      <div style="font-family:'Orbitron',sans-serif;font-size:11px;color:rgba(255,255,255,0.3)">${i+1}</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(0,245,255,0.1);border:1px solid rgba(0,245,255,0.2);
+          display:flex;align-items:center;justify-content:center;font-family:'Orbitron',sans-serif;font-size:11px;color:#00f5ff;flex-shrink:0">
+          ${escHtml(name[0]?.toUpperCase()||'?')}
+        </div>
+        <div>
+          <div style="font-size:13px;color:#fff;font-weight:600">${escHtml(name)} ${admin?'<span style="color:#ffbe0b;font-size:10px">★ ADMIN</span>':''}</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.35)">${achs} הישגים</div>
+        </div>
+      </div>
+      <div style="font-family:'Orbitron',sans-serif;font-size:12px;color:#ffbe0b">${(u.bestScore||0).toLocaleString()}</div>
+      <div style="font-family:'Orbitron',sans-serif;font-size:12px;color:rgba(255,255,255,0.6)">${u.bestWave||0}</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.5)">${u.totalGames||0}</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.5)">${(u.totalKills||0).toLocaleString()}</div>
+      <div style="font-size:12px;color:#ffbe0b">${(u.coins||0).toLocaleString()}</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <button onclick="adminGiveCoins('${escHtml(name)}')" style="font-size:10px;padding:4px 8px;background:rgba(255,190,11,0.1);border:1px solid rgba(255,190,11,0.3);color:#ffbe0b;cursor:pointer;border-radius:5px;transition:all 0.2s" onmouseover="this.style.background='rgba(255,190,11,0.2)'" onmouseout="this.style.background='rgba(255,190,11,0.1)'">⭐ מטבעות</button>
+        <button onclick="adminResetScore('${escHtml(name)}')" style="font-size:10px;padding:4px 8px;background:rgba(0,245,255,0.08);border:1px solid rgba(0,245,255,0.2);color:#00f5ff;cursor:pointer;border-radius:5px;transition:all 0.2s" onmouseover="this.style.background='rgba(0,245,255,0.15)'" onmouseout="this.style.background='rgba(0,245,255,0.08)'">🔄 אפס שיא</button>
+        ${!admin?`<button onclick="adminDeleteUser('${escHtml(name)}')" style="font-size:10px;padding:4px 8px;background:rgba(255,0,110,0.08);border:1px solid rgba(255,0,110,0.25);color:#ff006e;cursor:pointer;border-radius:5px;transition:all 0.2s" onmouseover="this.style.background='rgba(255,0,110,0.18)'" onmouseout="this.style.background='rgba(255,0,110,0.08)'">🗑️ מחק</button>`:''}
+      </div>
+    </div>`;
+  }).join('') || `<div style="padding:30px;text-align:center;color:rgba(255,255,255,0.3);font-family:'Orbitron',sans-serif;font-size:12px;letter-spacing:3px">אין משתמשים</div>`;
+}
+
+function adminSearch() {
+  const q = document.getElementById('admin-search').value.toLowerCase();
+  const db = loadDB();
+  const users = Object.entries(db.users)
+    .filter(([name])=>name.toLowerCase().includes(q))
+    .sort((a,b)=>(b[1].bestScore||0)-(a[1].bestScore||0));
+  document.getElementById('admin-users-list').innerHTML = renderAdminUsers(users);
+}
+
+function adminGiveCoins(username) {
+  const amount = prompt(`כמה מטבעות לתת ל-${username}?`);
+  if(!amount || isNaN(amount) || Number(amount)<=0) return;
+  const db = loadDB();
+  if(!db.users[username]) return;
+  db.users[username].coins = (db.users[username].coins||0) + Number(amount);
+  saveDB(db);
+  const panel = document.getElementById('admin-panel');
+  if(panel) renderAdminPanel(panel);
+  // Show confirmation
+  const toast = document.createElement('div');
+  toast.style.cssText='position:fixed;top:80px;right:20px;z-index:9999999;background:rgba(0,8,35,0.96);border:1px solid #ffbe0b;border-radius:10px;padding:12px 20px;font-family:Orbitron,sans-serif;font-size:12px;color:#ffbe0b;box-shadow:0 0 20px rgba(255,190,11,0.3)';
+  toast.textContent=`✓ הועברו ${Number(amount).toLocaleString()} ⭐ ל-${username}`;
+  document.body.appendChild(toast); setTimeout(()=>toast.remove(),2500);
+}
+
+function adminResetScore(username) {
+  if(!confirm(`לאפס את שיא הניקוד של ${username}?`)) return;
+  const db = loadDB();
+  if(!db.users[username]) return;
+  db.users[username].bestScore = 0;
+  db.users[username].bestWave = 0;
+  saveDB(db);
+  const panel = document.getElementById('admin-panel');
+  if(panel) renderAdminPanel(panel);
+}
+
+function adminDeleteUser(username) {
+  if(isAdmin(username)) { alert('לא ניתן למחוק חשבון אדמין'); return; }
+  if(!confirm(`למחוק את המשתמש "${username}"? פעולה זו בלתי הפיכה!`)) return;
+  const db = loadDB();
+  delete db.users[username];
+  saveDB(db);
+  localStorage.removeItem(`journal_${username}`);
+  const panel = document.getElementById('admin-panel');
+  if(panel) renderAdminPanel(panel);
+}
+
+// ——— END ADMIN SYSTEM ———
+
 function loadDB() {
   try { return JSON.parse(localStorage.getItem(DB_KEY)) || { users: {} }; } catch(e) { return { users: {} }; }
 }
@@ -1486,6 +1656,8 @@ function submitAuth() {
   const hash = hashPass(password);
 
   if(activeTab === 'register') {
+    // Block admin names from being registered by anyone
+    if(isAdminHash(username)) { errEl.textContent = '⚠ שם משתמש זה שמור'; return; }
     if(db.users[username]) { errEl.textContent = t('errUserExists'); return; }
     db.users[username] = { hash, bestScore: 0, bestWave: 0, created: Date.now() };
     saveDB(db);
@@ -2056,7 +2228,36 @@ function showScreen(id) {
   applyLanguage();
 }
 function showMenu() {
-  document.getElementById('welcome-name').textContent = currentUser || '';
+  const nameEl = document.getElementById('welcome-name');
+  if(nameEl) nameEl.innerHTML = escHtml(currentUser||'') + (isAdmin(currentUser) ? ' <span style="color:#ffbe0b;font-size:14px" title="Admin">★</span>' : '');
+
+  // Show/hide admin button
+  let adminBtn = document.getElementById('menu-admin-btn');
+  if(isAdmin(currentUser)) {
+    if(!adminBtn) {
+      adminBtn = document.createElement('button');
+      adminBtn.id = 'menu-admin-btn';
+      adminBtn.onclick = openAdminPanel;
+      adminBtn.style.cssText = `font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:3px;
+        padding:10px 24px;background:linear-gradient(135deg,rgba(255,190,11,0.15),rgba(255,80,0,0.1));
+        border:1px solid rgba(255,190,11,0.5);color:#ffbe0b;cursor:pointer;border-radius:6px;transition:all 0.3s;`;
+      adminBtn.innerHTML = '⚙️ פאנל אדמין';
+      adminBtn.onmouseover = ()=>{ adminBtn.style.background='rgba(255,190,11,0.2)'; adminBtn.style.boxShadow='0 0 20px rgba(255,190,11,0.3)'; };
+      adminBtn.onmouseout  = ()=>{ adminBtn.style.background='linear-gradient(135deg,rgba(255,190,11,0.15),rgba(255,80,0,0.1))'; adminBtn.style.boxShadow='none'; };
+      // Insert before the last menu-btns div (logout row)
+      const btnsRows = document.querySelectorAll('#menu-screen .menu-btns');
+      const lastRow = btnsRows[btnsRows.length-1];
+      const wrapper = document.createElement('div');
+      wrapper.className = 'menu-btns';
+      wrapper.id = 'admin-btn-wrapper';
+      wrapper.appendChild(adminBtn);
+      lastRow.parentNode.insertBefore(wrapper, lastRow);
+    }
+  } else {
+    const wrapper = document.getElementById('admin-btn-wrapper');
+    if(wrapper) wrapper.remove();
+  }
+
   loadShopPurchases();
   updateCoinDisplays();
   Audio.setIntensity(0);
