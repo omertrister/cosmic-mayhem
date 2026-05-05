@@ -1446,18 +1446,16 @@ const REMEMBER_KEY = 'cosmicmayhem_remember';
 
 // ——— ADMIN SYSTEM ———
 // Usernames stored as hashes — not readable in plain text from DevTools
-const ADMIN_HASHES = new Set(['-ae8io7', '-231b3e']);
-const ADMIN_BADGE = '☑️';
+// Admin names — split to avoid easy text search
+const _a1 = ['☑', '\uFE0F', 'g', 'u', 'y', ' ', 'c', 'r', 'e', 'a', 't', 'o', 'r'].join('');
+const _a2 = ['c', 'o', 'd', 'e', 'o', 'm', 'e', 'r', '☑', '\uFE0F'].join('');
 
-function isAdminHash(username) {
-  let h = 0;
-  for(let i=0;i<username.length;i++) h = Math.imul(31,h)+username.charCodeAt(i)|0;
-  const result = h.toString(36);
-  console.log('🔑 username hash:', JSON.stringify(username), '->', result, '| is admin:', ADMIN_HASHES.has(result));
-  return ADMIN_HASHES.has(result);
+function isAdmin(username) {
+  if(!username) return false;
+  if(username === _a1 || username === _a2) return true;
+  const db = loadDB();
+  return !!(db.users[username]?.isAdmin);
 }
-
-function isAdmin(username) { return !!username && isAdminHash(username); }
 
 // ——— ADMIN PANEL ———
 function openAdminPanel() {
@@ -1658,8 +1656,7 @@ function submitAuth() {
   const hash = hashPass(password);
 
   if(activeTab === 'register') {
-    // Block admin names from being registered by anyone
-    if(isAdminHash(username)) { errEl.textContent = '⚠ שם משתמש זה שמור'; return; }
+    if(isAdmin(username)) { errEl.textContent = '⚠ שם משתמש זה שמור'; return; }
     if(db.users[username]) { errEl.textContent = t('errUserExists'); return; }
     db.users[username] = { hash, bestScore: 0, bestWave: 0, created: Date.now() };
     saveDB(db);
