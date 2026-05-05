@@ -910,6 +910,7 @@
       <button class="sec-btn" onclick="showLeaderboard()" data-i18n="leaderboard">🏆 טבלת מובילים</button>
       <button class="sec-btn" onclick="showStats()" data-i18n="stats">📊 סטטיסטיקות</button>
       <button class="sec-btn" style="border-color:rgba(255,190,11,0.5);color:#ffbe0b" onclick="showShop()" data-i18n="shop">⭐ חנות שדרוגים</button>
+      <button class="sec-btn" onclick="showSettings()" style="border-color:rgba(0,245,255,0.4);color:#00f5ff">⚙️ הגדרות חשבון</button>
       <button class="sec-btn pink" onclick="logout()" data-i18n="logout">🚪 התנתק</button>
     </div>
     <div class="instructions">
@@ -921,6 +922,99 @@
       <div class="inst-item">⌨️ <span>Q</span> — <span data-i18n="dash">Dash מהיר</span></div>
       <div class="inst-item">⭐ <span data-i18n="yellow">צהוב</span> — <span data-i18n="collectPts">אסוף לנקודות!</span></div>
       <div class="inst-item">💀 <span data-i18n="pink">ורוד</span> — <span data-i18n="avoidPts">הימנע! מוריד נקודות</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS SCREEN -->
+<div id="settings-screen" class="screen">
+  <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:30px;box-sizing:border-box">
+    <div style="width:100%;max-width:560px">
+
+      <!-- Header -->
+      <div style="text-align:center;margin-bottom:28px">
+        <div style="font-family:'Orbitron',sans-serif;font-size:28px;font-weight:900;letter-spacing:5px;
+          background:linear-gradient(90deg,#00f5ff,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+          ⚙️ הגדרות חשבון
+        </div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:9px;color:rgba(255,255,255,0.3);letter-spacing:4px;margin-top:4px">ACCOUNT SETTINGS</div>
+      </div>
+
+      <!-- Profile card -->
+      <div style="background:rgba(0,8,35,0.8);border:1px solid rgba(0,245,255,0.15);border-radius:14px;padding:20px 24px;margin-bottom:16px;display:flex;align-items:center;gap:16px">
+        <div id="settings-avatar" style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,rgba(0,245,255,0.2),rgba(168,85,247,0.2));
+          border:2px solid rgba(0,245,255,0.3);display:flex;align-items:center;justify-content:center;
+          font-family:'Orbitron',sans-serif;font-size:22px;font-weight:900;color:#00f5ff;flex-shrink:0"></div>
+        <div>
+          <div id="settings-username-display" style="font-family:'Orbitron',sans-serif;font-size:16px;font-weight:700;color:#fff;margin-bottom:4px"></div>
+          <div id="settings-joined" style="font-family:'Exo 2',sans-serif;font-size:11px;color:rgba(255,255,255,0.4)"></div>
+          <div id="settings-admin-badge" style="display:none;margin-top:4px;font-family:'Orbitron',sans-serif;font-size:9px;letter-spacing:2px;color:#ffbe0b;background:rgba(255,190,11,0.1);border:1px solid rgba(255,190,11,0.3);padding:2px 8px;border-radius:4px;display:inline-block">★ ADMIN</div>
+        </div>
+        <div style="margin-left:auto;text-align:right">
+          <div style="font-family:'Orbitron',sans-serif;font-size:20px;font-weight:900;color:#ffbe0b" id="settings-coins-display"></div>
+          <div style="font-family:'Exo 2',sans-serif;font-size:10px;color:rgba(255,255,255,0.3)">מטבעות</div>
+          <div style="font-family:'Orbitron',sans-serif;font-size:14px;color:#00f5ff;margin-top:4px" id="settings-score-display"></div>
+          <div style="font-family:'Exo 2',sans-serif;font-size:10px;color:rgba(255,255,255,0.3)">שיא נקודות</div>
+        </div>
+      </div>
+
+      <!-- Change username -->
+      <div style="background:rgba(0,8,35,0.8);border:1px solid rgba(0,245,255,0.15);border-radius:14px;padding:20px 24px;margin-bottom:16px">
+        <div style="font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:3px;color:#00f5ff;margin-bottom:14px">✏️ שינוי שם משתמש</div>
+        <div class="field-group" style="margin-bottom:12px">
+          <label class="field-label">שם משתמש חדש</label>
+          <input class="field-input" id="settings-new-username" type="text" placeholder="הכנס שם חדש..." />
+        </div>
+        <div class="field-group" style="margin-bottom:14px">
+          <label class="field-label">סיסמה נוכחית לאישור</label>
+          <input class="field-input" id="settings-username-pass" type="password" placeholder="הכנס סיסמה..." />
+        </div>
+        <div id="settings-username-msg" style="font-size:12px;min-height:16px;margin-bottom:10px;font-family:'Exo 2',sans-serif"></div>
+        <button onclick="changeUsername()" style="font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:2px;padding:10px 24px;
+          background:rgba(0,245,255,0.08);border:1px solid rgba(0,245,255,0.3);color:#00f5ff;
+          cursor:pointer;border-radius:8px;transition:all 0.2s"
+          onmouseover="this.style.background='rgba(0,245,255,0.15)'" onmouseout="this.style.background='rgba(0,245,255,0.08)'">
+          שמור שם חדש
+        </button>
+      </div>
+
+      <!-- Change password -->
+      <div style="background:rgba(0,8,35,0.8);border:1px solid rgba(168,85,247,0.2);border-radius:14px;padding:20px 24px;margin-bottom:16px">
+        <div style="font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:3px;color:#a855f7;margin-bottom:14px">🔒 שינוי סיסמה</div>
+        <div class="field-group" style="margin-bottom:12px">
+          <label class="field-label">סיסמה נוכחית</label>
+          <input class="field-input" id="settings-old-pass" type="password" placeholder="סיסמה נוכחית..." />
+        </div>
+        <div class="field-group" style="margin-bottom:12px">
+          <label class="field-label">סיסמה חדשה</label>
+          <input class="field-input" id="settings-new-pass" type="password" placeholder="סיסמה חדשה..." />
+        </div>
+        <div class="field-group" style="margin-bottom:14px">
+          <label class="field-label">אישור סיסמה חדשה</label>
+          <input class="field-input" id="settings-confirm-pass" type="password" placeholder="אישור סיסמה..." />
+        </div>
+        <div id="settings-pass-msg" style="font-size:12px;min-height:16px;margin-bottom:10px;font-family:'Exo 2',sans-serif"></div>
+        <button onclick="changePassword()" style="font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:2px;padding:10px 24px;
+          background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.3);color:#a855f7;
+          cursor:pointer;border-radius:8px;transition:all 0.2s"
+          onmouseover="this.style.background='rgba(168,85,247,0.15)'" onmouseout="this.style.background='rgba(168,85,247,0.08)'">
+          שמור סיסמה חדשה
+        </button>
+      </div>
+
+      <!-- Danger zone -->
+      <div style="background:rgba(255,0,50,0.04);border:1px solid rgba(255,0,50,0.2);border-radius:14px;padding:20px 24px;margin-bottom:20px">
+        <div style="font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:3px;color:#ff4060;margin-bottom:14px">⚠️ אזור מסוכן</div>
+        <div style="font-family:'Exo 2',sans-serif;font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:14px">מחיקת חשבון תמחק את כל הנתונים שלך לצמיתות — ניקוד, מטבעות, הישגים.</div>
+        <button onclick="deleteOwnAccount()" style="font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:2px;padding:10px 24px;
+          background:rgba(255,0,50,0.08);border:1px solid rgba(255,0,50,0.3);color:#ff4060;
+          cursor:pointer;border-radius:8px;transition:all 0.2s"
+          onmouseover="this.style.background='rgba(255,0,50,0.18)'" onmouseout="this.style.background='rgba(255,0,50,0.08)'">
+          🗑️ מחק חשבון
+        </button>
+      </div>
+
+      <button class="lb-back-btn" onclick="showMenu()">← חזור לתפריט</button>
     </div>
   </div>
 </div>
@@ -1706,7 +1800,135 @@ function updateBestScore(sc, wv) {
   if(updated) saveDB(db);
 }
 
-// ========== BOSS RUSH & JOURNAL SYSTEM ==========
+// ========== SETTINGS SYSTEM ==========
+
+function showSettings() {
+  const db = loadDB();
+  const u = db.users[currentUser] || {};
+
+  // Fill profile card
+  document.getElementById('settings-avatar').textContent = (currentUser[0]||'?').toUpperCase();
+  document.getElementById('settings-username-display').textContent = currentUser;
+  const joined = u.created ? new Date(u.created).toLocaleDateString('he-IL') : '—';
+  document.getElementById('settings-joined').textContent = `הצטרף: ${joined}`;
+  document.getElementById('settings-coins-display').textContent = (u.coins||0).toLocaleString();
+  document.getElementById('settings-score-display').textContent = (u.bestScore||0).toLocaleString();
+
+  const adminBadge = document.getElementById('settings-admin-badge');
+  adminBadge.style.display = isAdmin(currentUser) ? 'inline-block' : 'none';
+
+  // Clear inputs and messages
+  ['settings-new-username','settings-username-pass','settings-old-pass','settings-new-pass','settings-confirm-pass'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
+  ['settings-username-msg','settings-pass-msg'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.textContent = '';
+  });
+
+  showScreen('settings-screen');
+}
+
+function settingsMsg(elId, msg, ok) {
+  const el = document.getElementById(elId);
+  if(el) { el.textContent = msg; el.style.color = ok ? '#06d6a0' : '#ff4060'; }
+}
+
+function changeUsername() {
+  const newName = document.getElementById('settings-new-username').value.trim();
+  const pass    = document.getElementById('settings-username-pass').value;
+
+  if(!newName || newName.length < 2) { settingsMsg('settings-username-msg','⚠ שם חייב להכיל לפחות 2 תווים', false); return; }
+  if(!pass)                          { settingsMsg('settings-username-msg','⚠ הכנס סיסמה נוכחית לאישור', false); return; }
+
+  const db = loadDB();
+  const u = db.users[currentUser];
+  if(!u) return;
+
+  if(u.hash !== hashPass(pass))      { settingsMsg('settings-username-msg','⚠ סיסמה שגויה', false); return; }
+  if(db.users[newName])              { settingsMsg('settings-username-msg','⚠ שם משתמש כבר קיים', false); return; }
+  if(isAdmin(newName) && !isAdmin(currentUser)) { settingsMsg('settings-username-msg','⚠ שם זה שמור', false); return; }
+
+  // Move account to new name
+  db.users[newName] = { ...u };
+  delete db.users[currentUser];
+
+  // Move journal
+  const journal = localStorage.getItem(`journal_${currentUser}`);
+  if(journal) { localStorage.setItem(`journal_${newName}`, journal); localStorage.removeItem(`journal_${currentUser}`); }
+
+  // Update remember-me
+  const rem = localStorage.getItem(REMEMBER_KEY);
+  if(rem) {
+    try {
+      const r = JSON.parse(rem);
+      if(r.username === currentUser) localStorage.setItem(REMEMBER_KEY, JSON.stringify({...r, username: newName}));
+    } catch(e){}
+  }
+
+  saveDB(db);
+  currentUser = newName;
+  settingsMsg('settings-username-msg', '✓ שם משתמש שונה בהצלחה!', true);
+
+  // Refresh display
+  document.getElementById('settings-avatar').textContent = (currentUser[0]||'?').toUpperCase();
+  document.getElementById('settings-username-display').textContent = currentUser;
+  const nameEl = document.getElementById('welcome-name');
+  if(nameEl) nameEl.innerHTML = escHtml(currentUser) + (isAdmin(currentUser) ? ' <span style="color:#ffbe0b;font-size:14px">★</span>' : '');
+}
+
+function changePassword() {
+  const oldPass  = document.getElementById('settings-old-pass').value;
+  const newPass  = document.getElementById('settings-new-pass').value;
+  const confPass = document.getElementById('settings-confirm-pass').value;
+
+  if(!oldPass)                       { settingsMsg('settings-pass-msg','⚠ הכנס סיסמה נוכחית', false); return; }
+  if(!newPass || newPass.length < 3) { settingsMsg('settings-pass-msg','⚠ סיסמה חדשה חייבת להכיל לפחות 3 תווים', false); return; }
+  if(newPass !== confPass)           { settingsMsg('settings-pass-msg','⚠ הסיסמאות לא תואמות', false); return; }
+
+  const db = loadDB();
+  const u = db.users[currentUser];
+  if(!u) return;
+
+  if(u.hash !== hashPass(oldPass))   { settingsMsg('settings-pass-msg','⚠ סיסמה נוכחית שגויה', false); return; }
+  if(oldPass === newPass)            { settingsMsg('settings-pass-msg','⚠ הסיסמה החדשה זהה לישנה', false); return; }
+
+  u.hash = hashPass(newPass);
+  saveDB(db);
+
+  // Update remember-me token
+  const rem = localStorage.getItem(REMEMBER_KEY);
+  if(rem) {
+    try {
+      const r = JSON.parse(rem);
+      if(r.username === currentUser) localStorage.setItem(REMEMBER_KEY, JSON.stringify({...r, hash: u.hash}));
+    } catch(e){}
+  }
+
+  settingsMsg('settings-pass-msg', '✓ סיסמה שונתה בהצלחה!', true);
+  document.getElementById('settings-old-pass').value = '';
+  document.getElementById('settings-new-pass').value = '';
+  document.getElementById('settings-confirm-pass').value = '';
+}
+
+function deleteOwnAccount() {
+  if(isAdmin(currentUser)) { alert('לא ניתן למחוק חשבון אדמין'); return; }
+  if(!confirm(`האם אתה בטוח שברצונך למחוק את החשבון "${currentUser}"?\nפעולה זו בלתי הפיכה!`)) return;
+  const pass = prompt('הכנס סיסמה לאישור מחיקה:');
+  if(!pass) return;
+  const db = loadDB();
+  const u = db.users[currentUser];
+  if(!u || u.hash !== hashPass(pass)) { alert('סיסמה שגויה'); return; }
+  delete db.users[currentUser];
+  saveDB(db);
+  localStorage.removeItem(`journal_${currentUser}`);
+  localStorage.removeItem(REMEMBER_KEY);
+  currentUser = null;
+  showScreen('auth-screen');
+}
+
+// ========== END SETTINGS SYSTEM ==========
+
+
 
 // Boss definitions for Boss Rush
 const BOSS_DEFS = [
