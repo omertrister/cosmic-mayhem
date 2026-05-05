@@ -3323,17 +3323,15 @@ function checkCollisions() {
   });
 
   // Enemies vs player — תמיד בודק
-  if(player.invincible <= 0) {
-    enemies = enemies.filter(e => {
-      if(dist(e, player) < e.size + 20) {
-        hitPlayer(20);
-        explode(e.x, e.y, e.color, 15, true);
-        addScore(-Math.floor(e.score/2));
-        return false;
-      }
-      return true;
-    });
-  }
+  enemies = enemies.filter(e => {
+    if(dist(e, player) < e.size + 20) {
+      hitPlayer(20);
+      explode(e.x, e.y, e.color, 15, true);
+      addScore(-Math.floor(e.score/2));
+      return false;
+    }
+    return true;
+  });
 
   // Powerups vs player
   powerups = powerups.filter(pw => {
