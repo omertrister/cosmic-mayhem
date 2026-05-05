@@ -1535,7 +1535,7 @@ function selectLang(code) {
   document.getElementById('lang-menu').style.display = 'none';
   applyLanguage();
   // Re-render shop if open
-  if(document.getElementById('shop-screen')?.classList.contains('active')) showShop();
+  if(document.getElementById('shop-screen')?.classList.contains('active')) await showShop();
 }
 
 // Close lang menu on outside click
@@ -1578,8 +1578,8 @@ function openAdminPanel() {
   renderAdminPanel(panel);
 }
 
-function renderAdminPanel(panel) {
-  const db = loadDB();
+async function renderAdminPanel(panel) {
+  const db = await loadDB();
   const users = Object.entries(db.users).sort((a,b)=>(b[1].bestScore||0)-(a[1].bestScore||0));
   const totalGames = users.reduce((s,[,u])=>s+(u.totalGames||0),0);
   const totalKillsAll = users.reduce((s,[,u])=>s+(u.totalKills||0),0);
@@ -1670,22 +1670,22 @@ function renderAdminUsers(users) {
   }).join('') || `<div style="padding:30px;text-align:center;color:rgba(255,255,255,0.3);font-family:'Orbitron',sans-serif;font-size:12px;letter-spacing:3px">אין משתמשים</div>`;
 }
 
-function adminSearch() {
+async function adminSearch() {
   const q = document.getElementById('admin-search').value.toLowerCase();
-  const db = loadDB();
+  const db = await loadDB();
   const users = Object.entries(db.users)
     .filter(([name])=>name.toLowerCase().includes(q))
     .sort((a,b)=>(b[1].bestScore||0)-(a[1].bestScore||0));
   document.getElementById('admin-users-list').innerHTML = renderAdminUsers(users);
 }
 
-function adminGiveCoins(username) {
+async function adminGiveCoins(username) {
   const amount = prompt(`כמה מטבעות לתת ל-${username}?`);
   if(!amount || isNaN(amount) || Number(amount)<=0) return;
-  const db = loadDB();
+  const db = await loadDB();
   if(!db.users[username]) return;
   db.users[username].coins = (db.users[username].coins||0) + Number(amount);
-  saveDB(db);
+  await saveDB(db);
   const panel = document.getElementById('admin-panel');
   if(panel) renderAdminPanel(panel);
   // Show confirmation
@@ -1695,23 +1695,23 @@ function adminGiveCoins(username) {
   document.body.appendChild(toast); setTimeout(()=>toast.remove(),2500);
 }
 
-function adminResetScore(username) {
+async function adminResetScore(username) {
   if(!confirm(`לאפס את שיא הניקוד של ${username}?`)) return;
-  const db = loadDB();
+  const db = await loadDB();
   if(!db.users[username]) return;
   db.users[username].bestScore = 0;
   db.users[username].bestWave = 0;
-  saveDB(db);
+  await saveDB(db);
   const panel = document.getElementById('admin-panel');
   if(panel) renderAdminPanel(panel);
 }
 
-function adminDeleteUser(username) {
+async function adminDeleteUser(username) {
   if(isAdmin(username)) { alert('לא ניתן למחוק חשבון אדמין'); return; }
   if(!confirm(`למחוק את המשתמש "${username}"? פעולה זו בלתי הפיכה!`)) return;
-  const db = loadDB();
+  const db = await loadDB();
   delete db.users[username];
-  saveDB(db);
+  await saveDB(db);
   localStorage.removeItem(`journal_${username}`);
   const panel = document.getElementById('admin-panel');
   if(panel) renderAdminPanel(panel);
@@ -1719,10 +1719,134 @@ function adminDeleteUser(username) {
 
 // ——— END ADMIN SYSTEM ———
 
-function loadDB() {
-  try { return JSON.parse(localStorage.getItem(DB_KEY)) || { users: {} }; } catch(e) { return { users: {} }; }
+// ========== FIREBASE DATABASE ==========
+const firebaseConfig = {
+  apiKey: "AIzaSyDWPvX2GltbtyEzI985WEIm9xJocupdICY",
+  authDomain: "cosmic-mayhem.firebaseapp.com",
+  databaseURL: "https://cosmic-mayhem-default-rtdb.firebaseio.com",
+  projectId: "cosmic-mayhem",
+  storageBucket: "cosmic-mayhem.firebasestorage.app",
+  messagingSenderId: "934599802795",
+  appId: "1:934599802795:web:2a87133cef09aa05d59cee"
+};
+
+// Load Firebase SDK dynamically
+let firebaseDB = null;
+let fbRef = null;
+
+function initFirebase() {
+  return new Promise((resolve) => {
+    if(firebaseDB) { resolve(); return; }
+    const script1 = document.createElement('script');
+    script1.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js';
+    script1.onload = () => {
+      const script2 = document.createElement('script');
+      script2.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js';
+      script2.onload = () => {
+        firebase.initializeApp(firebaseConfig);
+        firebaseDB = firebase.database();
+        fbRef = firebaseDB.ref('cosmicmayhem');
+        resolve();
+      };
+      document.head.appendChild(script2);
+    };
+    document.head.appendChild(script1);
+  });
 }
-function saveDB(db) { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+
+// Cache for performance
+let _dbCache = null;
+let _dbCacheTime = 0;
+const CACHE_TTL = 3000; // 3 seconds
+
+async function loadDB() {
+  // Use cache if fresh
+  if(_dbCache && Date.now() - _dbCacheTime < CACHE_TTL) return _dbCache;
+  try {
+    const snap = await fbRef.child('users').once('value');
+    const users = snap.val() || {};
+    _dbCache = { users };
+    _dbCacheTime = Date.now();
+    return _dbCache;
+  } catch(e) {
+    // Fallback to localStorage if offline
+    try { return JSON.parse(localStorage.getItem(DB_KEY)) || { users: {} }; }
+    catch(e2) { return { users: {} }; }
+  }
+}
+
+async function saveDB(db) {
+  _dbCache = db;
+  _dbCacheTime = Date.now();
+  try {
+    await fbRef.child('users').set(db.users);
+    // Also save to localStorage as backup
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
+  } catch(e) {
+    // Offline — save only locally
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
+  }
+}
+
+// Journal to Firebase
+async function loadJournalFromDB(username) {
+  try {
+    const snap = await fbRef.child(`journals/${username}`).once('value');
+    return snap.val() || [];
+  } catch(e) {
+    try { return JSON.parse(localStorage.getItem(`journal_${username}`)) || []; } catch(e2) { return []; }
+  }
+}
+
+async function saveJournalToDB(username, entries) {
+  try { await fbRef.child(`journals/${username}`).set(entries); } catch(e) {}
+  localStorage.setItem(`journal_${username}`, JSON.stringify(entries));
+}
+
+// Override journal functions to use Firebase
+async function getJournal() {
+  if(!currentUser) return [];
+  return await loadJournalFromDB(currentUser);
+}
+
+async function saveJournalEntry(entry) {
+  if(!currentUser) return;
+  const j = await loadJournalFromDB(currentUser);
+  j.unshift({ ...entry, date: Date.now() });
+  if(j.length > 200) j.pop();
+  await saveJournalToDB(currentUser, j);
+}
+
+// Show loading overlay
+function showLoading(msg='טוען...') {
+  let el = document.getElementById('fb-loading');
+  if(!el) {
+    el = document.createElement('div');
+    el.id = 'fb-loading';
+    el.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999999;
+      background:rgba(0,0,10,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px`;
+    el.innerHTML = `
+      <div style="font-size:40px">🚀</div>
+      <div id="fb-loading-msg" style="font-family:'Orbitron',sans-serif;font-size:14px;letter-spacing:4px;color:#00f5ff">${msg}</div>
+      <div style="width:200px;height:3px;background:rgba(0,245,255,0.1);border-radius:2px;overflow:hidden">
+        <div id="fb-loading-bar" style="height:100%;background:linear-gradient(90deg,#00f5ff,#a855f7);border-radius:2px;animation:loadBar 1.5s ease-in-out infinite"></div>
+      </div>`;
+    const s = document.createElement('style');
+    s.textContent = '@keyframes loadBar{0%{width:0%;margin-left:0}50%{width:60%;margin-left:20%}100%{width:0%;margin-left:100%}}';
+    document.head.appendChild(s);
+    document.body.appendChild(el);
+  } else {
+    document.getElementById('fb-loading-msg').textContent = msg;
+    el.style.display = 'flex';
+  }
+}
+
+function hideLoading() {
+  const el = document.getElementById('fb-loading');
+  if(el) el.style.display = 'none';
+}
+
+// ========== END FIREBASE ==========
 
 function hashPass(s) {
   // simple non-crypto hash (demo purposes)
@@ -1748,7 +1872,7 @@ function toggleRemember() {
   document.getElementById('remember-check').classList.toggle('checked', rememberMe);
 }
 
-function submitAuth() {
+async function submitAuth() {
   const username = document.getElementById('auth-username').value.trim();
   const password = document.getElementById('auth-password').value;
   const errEl = document.getElementById('auth-error');
@@ -1757,31 +1881,33 @@ function submitAuth() {
   if(!username || username.length < 2) { errEl.textContent = t('errShortUser'); return; }
   if(!password || password.length < 3) { errEl.textContent = t('errShortPass'); return; }
 
-  const db = loadDB();
+  showLoading('מתחבר לשרת...');
+  const db = await loadDB();
+  hideLoading();
   const hash = hashPass(password);
 
   if(activeTab === 'register') {
     if(isAdmin(username)) { errEl.textContent = '⚠ שם משתמש זה שמור'; return; }
     if(db.users[username]) { errEl.textContent = t('errUserExists'); return; }
     db.users[username] = { hash, bestScore: 0, bestWave: 0, created: Date.now() };
-    saveDB(db);
+    await saveDB(db);
     currentUser = username;
     if(rememberMe) localStorage.setItem(REMEMBER_KEY, JSON.stringify({username, hash}));
-    showMenu();
+    await showMenu();
   } else {
     if(!db.users[username]) { errEl.textContent = t('errNoUser'); return; }
     if(db.users[username].hash !== hash) { errEl.textContent = t('errWrongPass'); return; }
     currentUser = username;
     if(rememberMe) localStorage.setItem(REMEMBER_KEY, JSON.stringify({username, hash}));
     else localStorage.removeItem(REMEMBER_KEY);
-    showMenu();
+    await showMenu();
   }
 }
 
 document.getElementById('auth-username').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('auth-password').focus(); });
 document.getElementById('auth-password').addEventListener('keydown', e => { if(e.key==='Enter') submitAuth(); });
 
-function logout() {
+async function logout() {
   localStorage.removeItem(REMEMBER_KEY);
   currentUser = null;
   document.getElementById('auth-username').value = '';
@@ -1791,21 +1917,21 @@ function logout() {
   showScreen('auth-screen');
 }
 
-function updateBestScore(sc, wv) {
+async function updateBestScore(sc, wv) {
   if(!currentUser) return;
-  const db = loadDB();
+  const db = await loadDB();
   const u = db.users[currentUser];
   if(!u) return;
   let updated = false;
   if(sc > (u.bestScore||0)) { u.bestScore = sc; updated = true; }
   if(wv > (u.bestWave||0)) { u.bestWave = wv; updated = true; }
-  if(updated) saveDB(db);
+  if(updated) await saveDB(db);
 }
 
 // ========== SETTINGS SYSTEM ==========
 
-function showSettings() {
-  const db = loadDB();
+async function showSettings() {
+  const db = await loadDB();
   const u = db.users[currentUser] || {};
 
   // Fill profile card
@@ -1835,14 +1961,14 @@ function settingsMsg(elId, msg, ok) {
   if(el) { el.textContent = msg; el.style.color = ok ? '#06d6a0' : '#ff4060'; }
 }
 
-function changeUsername() {
+async function changeUsername() {
   const newName = document.getElementById('settings-new-username').value.trim();
   const pass    = document.getElementById('settings-username-pass').value;
 
   if(!newName || newName.length < 2) { settingsMsg('settings-username-msg','⚠ שם חייב להכיל לפחות 2 תווים', false); return; }
   if(!pass)                          { settingsMsg('settings-username-msg','⚠ הכנס סיסמה נוכחית לאישור', false); return; }
 
-  const db = loadDB();
+  const db = await loadDB();
   const u = db.users[currentUser];
   if(!u) return;
 
@@ -1867,7 +1993,7 @@ function changeUsername() {
     } catch(e){}
   }
 
-  saveDB(db);
+  await saveDB(db);
   currentUser = newName;
   settingsMsg('settings-username-msg', '✓ שם משתמש שונה בהצלחה!', true);
 
@@ -1878,7 +2004,7 @@ function changeUsername() {
   if(nameEl) nameEl.innerHTML = escHtml(currentUser) + (isAdmin(currentUser) ? ' <span style="color:#ffbe0b;font-size:14px">★</span>' : '');
 }
 
-function changePassword() {
+async function changePassword() {
   const oldPass  = document.getElementById('settings-old-pass').value;
   const newPass  = document.getElementById('settings-new-pass').value;
   const confPass = document.getElementById('settings-confirm-pass').value;
@@ -1887,7 +2013,7 @@ function changePassword() {
   if(!newPass || newPass.length < 3) { settingsMsg('settings-pass-msg','⚠ סיסמה חדשה חייבת להכיל לפחות 3 תווים', false); return; }
   if(newPass !== confPass)           { settingsMsg('settings-pass-msg','⚠ הסיסמאות לא תואמות', false); return; }
 
-  const db = loadDB();
+  const db = await loadDB();
   const u = db.users[currentUser];
   if(!u) return;
 
@@ -1895,7 +2021,7 @@ function changePassword() {
   if(oldPass === newPass)            { settingsMsg('settings-pass-msg','⚠ הסיסמה החדשה זהה לישנה', false); return; }
 
   u.hash = hashPass(newPass);
-  saveDB(db);
+  await saveDB(db);
 
   // Update remember-me token
   const rem = localStorage.getItem(REMEMBER_KEY);
@@ -1912,16 +2038,16 @@ function changePassword() {
   document.getElementById('settings-confirm-pass').value = '';
 }
 
-function deleteOwnAccount() {
+async function deleteOwnAccount() {
   if(isAdmin(currentUser)) { alert('לא ניתן למחוק חשבון אדמין'); return; }
   if(!confirm(`האם אתה בטוח שברצונך למחוק את החשבון "${currentUser}"?\nפעולה זו בלתי הפיכה!`)) return;
   const pass = prompt('הכנס סיסמה לאישור מחיקה:');
   if(!pass) return;
-  const db = loadDB();
+  const db = await loadDB();
   const u = db.users[currentUser];
   if(!u || u.hash !== hashPass(pass)) { alert('סיסמה שגויה'); return; }
   delete db.users[currentUser];
-  saveDB(db);
+  await saveDB(db);
   localStorage.removeItem(`journal_${currentUser}`);
   localStorage.removeItem(REMEMBER_KEY);
   currentUser = null;
@@ -1971,7 +2097,7 @@ function filterJournal(type) {
   renderJournal();
 }
 
-function showJournal() {
+async function showJournal() {
   journalFilter = 'all';
   document.querySelectorAll('.j-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('jtab-all')?.classList.add('active');
@@ -1979,7 +2105,7 @@ function showJournal() {
   showScreen('journal-screen');
 }
 
-function renderJournal() {
+async function renderJournal() {
   const entries = getJournal().filter(e => journalFilter==='all' || e.type===journalFilter);
   const timeline = document.getElementById('journal-timeline');
   const total = getJournal().length;
@@ -2024,7 +2150,7 @@ function renderJournal() {
 }
 
 // ——— BOSS RUSH SELECT ———
-function showBossRushSelect() {
+async function showBossRushSelect() {
   const journal = getJournal().filter(e=>e.type==='boss_rush' && e.result==='win');
   const beatenIds = new Set(journal.map(e=>e.bossId));
 
@@ -2113,7 +2239,7 @@ function spawnBossRushBoss() {
   document.getElementById('wave-display').textContent = `${bossRushIndex+1}/${BOSS_DEFS.length}`;
 }
 
-function endBossRush(victory) {
+async function endBossRush(victory) {
   bossRushActive = false;
   const duration = Math.floor((Date.now()-bossRushStartTime)/1000);
   const totalScore = score;
@@ -2194,31 +2320,31 @@ const RARITY_COLORS = {
 
 function rarityName(r) { return t('rarity_'+r); }
 
-function getCoins() {
+async function getCoins() {
   if(!currentUser) return 0;
-  const db = loadDB();
+  const db = await loadDB();
   return db.users[currentUser]?.coins || 0;
 }
 
-function addCoins(amount) {
+async function addCoins(amount) {
   if(!currentUser) return;
-  const db = loadDB();
+  const db = await loadDB();
   if(!db.users[currentUser]) return;
   const mult = shopPurchased['double_coins'] ? (shopPurchased['double_coins']>=2 ? 3 : 2) : 1;
   const actual = amount * mult;
   sessionCoins += actual;
   db.users[currentUser].coins = (db.users[currentUser].coins || 0) + actual;
-  saveDB(db);
+  await saveDB(db);
   updateCoinDisplays();
 }
 
-function spendCoins(amount) {
+async function spendCoins(amount) {
   if(!currentUser) return false;
-  const db = loadDB();
+  const db = await loadDB();
   const u = db.users[currentUser];
   if(!u || (u.coins||0) < amount) return false;
   u.coins -= amount;
-  saveDB(db);
+  await saveDB(db);
   updateCoinDisplays();
   return true;
 }
@@ -2230,21 +2356,21 @@ function updateCoinDisplays() {
   els.forEach(id => { const el=document.getElementById(id); if(el) el.textContent=fmt; });
 }
 
-function loadShopPurchases() {
+async function loadShopPurchases() {
   if(!currentUser) return;
-  const db = loadDB();
+  const db = await loadDB();
   shopPurchased = db.users[currentUser]?.shopItems || {};
 }
 
-function saveShopPurchases() {
+async function saveShopPurchases() {
   if(!currentUser) return;
-  const db = loadDB();
+  const db = await loadDB();
   if(!db.users[currentUser]) return;
   db.users[currentUser].shopItems = shopPurchased;
-  saveDB(db);
+  await saveDB(db);
 }
 
-function buyShopItem(itemId) {
+async function buyShopItem(itemId) {
   const item = SHOP_ITEMS.find(i=>i.id===itemId);
   if(!item) return;
   const currentLvl = shopPurchased[itemId] || 0;
@@ -2257,8 +2383,8 @@ function buyShopItem(itemId) {
     return;
   }
   shopPurchased[itemId] = currentLvl + 1;
-  saveShopPurchases();
-  showShop(); // refresh
+  await saveShopPurchases();
+  await showShop(); // refresh
   // Celebrate
   const grid = document.getElementById('shop-grid');
   if(grid) {
@@ -2269,8 +2395,8 @@ function buyShopItem(itemId) {
   }
 }
 
-function showShop() {
-  loadShopPurchases();
+async function showShop() {
+  await loadShopPurchases();
   updateCoinDisplays();
   const grid = document.getElementById('shop-grid');
   grid.innerHTML = '';
@@ -2381,8 +2507,8 @@ document.head.appendChild(shopStyle);
 
 
 // ——— LEADERBOARD ———
-function showLeaderboard() {
-  const db = loadDB();
+async function showLeaderboard() {
+  const db = await loadDB();
   const entries = Object.entries(db.users)
     .map(([name, data]) => ({ name, score: data.bestScore||0, wave: data.bestWave||0 }))
     .sort((a,b) => b.score - a.score || b.wave - a.wave)
@@ -2459,7 +2585,7 @@ function showScreen(id) {
   if(hudLangBtn) hudLangBtn.style.display = (gameState==='playing') ? 'flex' : 'none';
   applyLanguage();
 }
-function showMenu() {
+async function showMenu() {
   const nameEl = document.getElementById('welcome-name');
   const adminStatus = isAdmin(currentUser);
   if(nameEl) nameEl.innerHTML = escHtml(currentUser||'') + (adminStatus ? ' <span style="color:#ffbe0b;font-size:14px">★</span>' : '');
@@ -2468,7 +2594,7 @@ function showMenu() {
   const adminRow = document.getElementById('admin-btn-wrapper');
   if(adminRow) adminRow.style.display = adminStatus ? 'flex' : 'none';
 
-  loadShopPurchases();
+  await loadShopPurchases();
   updateCoinDisplays();
   Audio.setIntensity(0);
   showScreen('menu-screen');
@@ -2523,11 +2649,11 @@ function unlockAchievement(id) {
   if(achievements[id]) return;
   achievements[id] = true;
   if(currentUser) {
-    const db = loadDB();
+    const db = await loadDB();
     if(db.users[currentUser]) {
       if(!db.users[currentUser].achievements) db.users[currentUser].achievements = {};
       db.users[currentUser].achievements[id] = true;
-      saveDB(db);
+      await saveDB(db);
     }
   }
   const a = ACHIEVEMENTS.find(x=>x.id===id);
@@ -2617,7 +2743,7 @@ function activateDash() {
 }
 
 // ——— UPGRADE SCREEN ———
-function showUpgradeScreen() {
+async function showUpgradeScreen() {
   const screen = document.getElementById('upgrade-screen');
   screen.querySelector('.upgrade-wave').textContent = `⚡ ${t('stage')} ${wave} — ${t('stageComplete')} ⚡`;
   const upgDefs = [
@@ -2656,14 +2782,14 @@ function showUpgradeScreen() {
   showScreen('upgrade-screen');
 }
 
-function buyUpgrade(key, cost) {
+async function buyUpgrade(key, cost) {
   const maxes = { fireRate:3, maxHealth:3, shieldRecharge:3, dashSpeed:3, orbitShield:3 };
   if(upgrades[key] >= maxes[key]) return;
   if(!spendCoins(cost)) return;
   upgrades[key]++;
   if(key==='maxHealth') { maxHealth = 100+upgrades.maxHealth*25; health=Math.min(health+25,maxHealth); document.getElementById('health-bar').style.width=(health/maxHealth*100)+'%'; }
   checkAchievements();
-  showUpgradeScreen(); // refresh to update coin count
+  await showUpgradeScreen(); // refresh to update coin count
 }
 
 function closeUpgradeAndContinue() {
@@ -2699,8 +2825,8 @@ function spawnMimic() {
 }
 
 // ——— STATS ———
-function showStats() {
-  const db = loadDB();
+async function showStats() {
+  const db = await loadDB();
   const u = db.users[currentUser]||{};
   const achs = u.achievements||{};
   document.getElementById('stats-body').innerHTML = `
@@ -2718,15 +2844,15 @@ function showStats() {
   showScreen('stats-screen');
 }
 
-function updateGlobalStats() {
+async function updateGlobalStats() {
   if(!currentUser) return;
-  const db = loadDB();
+  const db = await loadDB();
   const u = db.users[currentUser];
   if(!u) return;
   u.totalKills = (u.totalKills||0) + totalKills;
   u.totalGames = (u.totalGames||0) + 1;
   u.totalOrbs  = (u.totalOrbs||0)  + totalOrbsCollected;
-  saveDB(db);
+  await saveDB(db);
 }
 
 // ——— SLOW MO ———
@@ -3302,7 +3428,7 @@ function checkCollisions() {
           if(bossRushIndex >= BOSS_DEFS.length) { setTimeout(()=>endBossRush(true), 2000); }
           else { setTimeout(()=>spawnBossRushBoss(), 3000); }
         } else {
-          setTimeout(()=>{ if(gameMode==='normal') showUpgradeScreen(); else { wave++; startWave(); } }, 2500);
+          setTimeout(()=>{ if(gameMode==='normal') await showUpgradeScreen(); else { wave++; startWave(); } }, 2500);
         }
       } else if(boss.hp <= boss.maxHp/2 && boss.phase === 1) {
         boss.phase = 2;
@@ -3462,7 +3588,7 @@ function startWave() {
 }
 
 function startGame() {
-  loadShopPurchases();
+  await loadShopPurchases();
   sessionCoins = 0;
   score = 0;
   lives = 3 + (shopPurchased['extra_life'] ? 1 : 0);
@@ -3504,29 +3630,29 @@ function startNormal() {
   startGame();
 }
 
-function returnToMenu() {
+async function returnToMenu() {
   if(gameState !== 'playing') return;
-  updateBestScore(score, wave);
-  updateGlobalStats();
+  await updateBestScore(score, wave);
+  await updateGlobalStats();
   gameState = 'menu'; gameMode = 'normal';
   const sf = document.getElementById('score-final');
   sf.style.display = 'block';
   sf.textContent = `FINAL SCORE: ${score.toLocaleString()}  |  STAGE: ${wave}`;
   resetCombo();
-  showMenu();
+  await showMenu();
 }
 
-function gameOver() {
+async function gameOver() {
   if(gameMode === 'boss_rush') { endBossRush(false); return; }
   gameState = 'menu';
-  updateBestScore(score, wave);
-  updateGlobalStats();
+  await updateBestScore(score, wave);
+  await updateGlobalStats();
   gameMode = 'normal';
   const sf = document.getElementById('score-final');
   sf.style.display = 'block';
   sf.textContent = `FINAL SCORE: ${score.toLocaleString()}  |  STAGE: ${wave}`;
   resetCombo();
-  showMenu();
+  await showMenu();
 }
 
 // ——— MAIN UPDATE ———
@@ -4264,24 +4390,26 @@ document.addEventListener('click', function startAudio() {
 // ============================================================
 
 
-(function checkAutoLogin() {
+(async function init() {
+  showLoading('מתחבר לשרת...');
+  try { await initFirebase(); } catch(e) {}
+  hideLoading();
+
   const remembered = localStorage.getItem(REMEMBER_KEY);
   if(remembered) {
     try {
       const data = JSON.parse(remembered);
-      const db = loadDB();
+      const db = await loadDB();
       if(db.users[data.username] && db.users[data.username].hash === data.hash) {
         currentUser = data.username;
-        showMenu();
-        return;
+        await await showMenu();
       }
-    } catch(e){}
+    } catch(e) {}
   }
-  // no auto-login — auth screen stays active by default
-})();
 
-applyLanguage();
-gameLoop();
+  applyLanguage();
+  gameLoop();
+})();
 </script>
 </body>
 </html>
