@@ -3356,7 +3356,7 @@ function hitPlayer(dmg) {
   if(shopPurchased['armor_plating']) dmg = Math.floor(dmg * 0.8);
   waveNoDamage = false;
   health = Math.max(0, health - dmg);
-  player.invincible = 90;
+  player.invincible = 120;
   Audio.playerHurt();
   document.getElementById('health-bar').style.width = (health/maxHealth*100)+'%';
   resetCombo();
