@@ -4439,6 +4439,7 @@ document.addEventListener('click', function startAudio() {
 
 
 (async function init() {
+  alert("0");
   showLoading('מתחבר לשרת...');
   try { await initFirebase(); } catch(e) {}
   hideLoading();
