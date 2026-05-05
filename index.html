@@ -1563,7 +1563,7 @@ function isAdmin(username) {
 }
 
 // ——— ADMIN PANEL ———
-function openAdminPanel() {
+async function openAdminPanel() {
   let panel = document.getElementById('admin-panel');
   if(!panel) {
     panel = document.createElement('div');
@@ -1575,11 +1575,13 @@ function openAdminPanel() {
     `;
     document.body.appendChild(panel);
   }
-  renderAdminPanel(panel);
+  // Show loading inside panel while fetching fresh data
+  panel.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:Orbitron,sans-serif;font-size:14px;color:#00f5ff;letter-spacing:4px">טוען נתונים מהשרת...</div>`;
+  await renderAdminPanel(panel);
 }
 
 async function renderAdminPanel(panel) {
-  const db = await loadDB();
+  const db = await loadDB(true); // תמיד טען נתונים טריים מהשרת
   const users = Object.entries(db.users).sort((a,b)=>(b[1].bestScore||0)-(a[1].bestScore||0));
   const totalGames = users.reduce((s,[,u])=>s+(u.totalGames||0),0);
   const totalKillsAll = users.reduce((s,[,u])=>s+(u.totalKills||0),0);
@@ -1672,7 +1674,7 @@ function renderAdminUsers(users) {
 
 async function adminSearch() {
   const q = document.getElementById('admin-search').value.toLowerCase();
-  const db = await loadDB();
+  const db = await loadDB(true);
   const users = Object.entries(db.users)
     .filter(([name])=>name.toLowerCase().includes(q))
     .sort((a,b)=>(b[1].bestScore||0)-(a[1].bestScore||0));
@@ -1759,9 +1761,9 @@ let _dbCache = null;
 let _dbCacheTime = 0;
 const CACHE_TTL = 3000; // 3 seconds
 
-async function loadDB() {
-  // Use cache if fresh
-  if(_dbCache && Date.now() - _dbCacheTime < CACHE_TTL) return _dbCache;
+async function loadDB(fresh = false) {
+  // Use cache if fresh enough and not forced
+  if(!fresh && _dbCache && Date.now() - _dbCacheTime < CACHE_TTL) return _dbCache;
   try {
     const snap = await fbRef.child('users').once('value');
     const users = snap.val() || {};
@@ -1769,7 +1771,6 @@ async function loadDB() {
     _dbCacheTime = Date.now();
     return _dbCache;
   } catch(e) {
-    // Fallback to localStorage if offline
     try { return JSON.parse(localStorage.getItem(DB_KEY)) || { users: {} }; }
     catch(e2) { return { users: {} }; }
   }
