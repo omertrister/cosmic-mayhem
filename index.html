@@ -889,6 +889,17 @@
       </div>
     </div>
     <div id="score-final" style="display:none;margin-bottom:18px"></div>
+    <div class="menu-btns" id="admin-btn-wrapper" style="display:none">
+      <button onclick="openAdminPanel()" style="
+        font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:3px;
+        padding:10px 24px;background:linear-gradient(135deg,rgba(255,190,11,0.15),rgba(255,80,0,0.1));
+        border:1px solid rgba(255,190,11,0.6);color:#ffbe0b;cursor:pointer;border-radius:6px;transition:all 0.3s;
+        box-shadow:0 0 15px rgba(255,190,11,0.2);"
+        onmouseover="this.style.background='rgba(255,190,11,0.25)'"
+        onmouseout="this.style.background='linear-gradient(135deg,rgba(255,190,11,0.15),rgba(255,80,0,0.1))'">
+        ⚙️ פאנל אדמין
+      </button>
+    </div>
     <div class="menu-btns">
       <button class="start-btn" id="start-btn" onclick="startNormal()" data-i18n="launch">LAUNCH MISSION</button>
     </div>
@@ -1452,9 +1463,7 @@ const _a2 = ['c', 'o', 'd', 'e', 'o', 'm', 'e', 'r'].join('');
 
 function isAdmin(username) {
   if(!username) return false;
-  if(username === _a1 || username === _a2) return true;
-  const db = loadDB();
-  return !!(db.users[username]?.isAdmin);
+  return username === _a1 || username === _a2;
 }
 
 // ——— ADMIN PANEL ———
@@ -2228,30 +2237,12 @@ function showScreen(id) {
 }
 function showMenu() {
   const nameEl = document.getElementById('welcome-name');
-  if(nameEl) nameEl.innerHTML = escHtml(currentUser||'') + (isAdmin(currentUser) ? ' <span style="color:#ffbe0b;font-size:14px">★</span>' : '');
+  const adminStatus = isAdmin(currentUser);
+  if(nameEl) nameEl.innerHTML = escHtml(currentUser||'') + (adminStatus ? ' <span style="color:#ffbe0b;font-size:14px">★</span>' : '');
 
-  // Admin button — remove old one first, then re-add if admin
-  const old = document.getElementById('admin-btn-wrapper');
-  if(old) old.remove();
-
-  if(isAdmin(currentUser)) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'menu-btns';
-    wrapper.id = 'admin-btn-wrapper';
-    wrapper.innerHTML = `<button onclick="openAdminPanel()" style="
-      font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:3px;
-      padding:10px 24px;background:linear-gradient(135deg,rgba(255,190,11,0.15),rgba(255,80,0,0.1));
-      border:1px solid rgba(255,190,11,0.6);color:#ffbe0b;cursor:pointer;border-radius:6px;transition:all 0.3s;
-      box-shadow:0 0 15px rgba(255,190,11,0.2);"
-      onmouseover="this.style.background='rgba(255,190,11,0.25)';this.style.boxShadow='0 0 25px rgba(255,190,11,0.4)'"
-      onmouseout="this.style.background='linear-gradient(135deg,rgba(255,190,11,0.15),rgba(255,80,0,0.1))';this.style.boxShadow='0 0 15px rgba(255,190,11,0.2)'">
-      ⚙️ פאנל אדמין
-    </button>`;
-    // Insert after LAUNCH MISSION row
-    const menuContent = document.querySelector('#menu-screen .menu-content');
-    const firstBtns = menuContent.querySelector('.menu-btns');
-    firstBtns.parentNode.insertBefore(wrapper, firstBtns.nextSibling);
-  }
+  // Show/hide static admin button
+  const adminRow = document.getElementById('admin-btn-wrapper');
+  if(adminRow) adminRow.style.display = adminStatus ? 'flex' : 'none';
 
   loadShopPurchases();
   updateCoinDisplays();
